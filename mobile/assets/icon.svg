@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="200" fill="#FF6B35"/>
+  
+  <!-- Fuel Pump Icon -->
+  <g transform="translate(512, 512)">
+    <!-- Pump Base -->
+    <rect x="-120" y="200" width="240" height="300" rx="20" fill="#FFFFFF" opacity="0.9"/>
+    
+    <!-- Pump Nozzle -->
+    <rect x="-40" y="100" width="80" height="120" rx="10" fill="#FFFFFF" opacity="0.9"/>
+    
+    <!-- Pump Handle -->
+    <rect x="-20" y="50" width="40" height="60" rx="5" fill="#FFFFFF" opacity="0.9"/>
+    
+    <!-- Fuel Drop -->
+    <ellipse cx="0" cy="-100" rx="60" ry="80" fill="#FFFFFF" opacity="0.9"/>
+    <ellipse cx="0" cy="-80" rx="40" ry="60" fill="#FF6B35"/>
+    
+    <!-- Text "FM" -->
+    <text x="0" y="350" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#FFFFFF" text-anchor="middle">FM</text>
+  </g>
+</svg>
