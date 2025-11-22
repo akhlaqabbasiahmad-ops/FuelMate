@@ -259,6 +259,10 @@ export class RequestsController {
   }
 
   @Post(':id/accept')
+  @ApiOperation({ summary: 'Accept a fuel request' })
+  @ApiParam({ name: 'id', description: 'Request ID' })
+  @ApiResponse({ status: 200, description: 'Request accepted successfully' })
+  @ApiResponse({ status: 404, description: 'Request not found' })
   async acceptRequest(
     @Param('id') requestId: string,
     @Body('providerId') providerId: string,
@@ -272,6 +276,10 @@ export class RequestsController {
    * IMPORTANT: This route MUST come before @Get(':id') to avoid route conflicts
    */
   @Get('history')
+  @ApiOperation({ summary: 'Get request history (completed requests)' })
+  @ApiQuery({ name: 'userId', type: String, description: 'User ID' })
+  @ApiQuery({ name: 'userRole', enum: ['needy', 'provider'], description: 'User role' })
+  @ApiResponse({ status: 200, description: 'Request history retrieved successfully' })
   async getRequestHistory(
     @Query('userId') userId: string,
     @Query('userRole') userRole: 'needy' | 'provider',
@@ -344,6 +352,10 @@ export class RequestsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a specific request by ID' })
+  @ApiParam({ name: 'id', description: 'Request ID' })
+  @ApiResponse({ status: 200, description: 'Request found' })
+  @ApiResponse({ status: 404, description: 'Request not found' })
   async getRequest(@Param('id') requestId: string) {
     const request = await this.requestsService.getRequest(requestId);
     if (!request) {
@@ -406,6 +418,10 @@ export class RequestsController {
 
   // Quote Endpoints
   @Post('quotes/create')
+  @ApiOperation({ summary: 'Create a quote for a fuel request' })
+  @ApiResponse({ status: 201, description: 'Quote created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiBody({ type: CreateQuoteDto })
   async createQuote(@Body() createQuoteDto: CreateQuoteDto) {
     if (!createQuoteDto.providerId) {
       return {
@@ -480,6 +496,10 @@ export class RequestsController {
   }
 
   @Post('quotes/:quoteId/accept')
+  @ApiOperation({ summary: 'Accept a quote' })
+  @ApiParam({ name: 'quoteId', description: 'Quote ID' })
+  @ApiResponse({ status: 200, description: 'Quote accepted successfully' })
+  @ApiResponse({ status: 404, description: 'Quote not found' })
   async acceptQuote(
     @Param('quoteId') quoteId: string,
     @Body('needyId') needyId: string,
