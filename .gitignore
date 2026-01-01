@@ -35,6 +35,17 @@ tmp/
 temp/
 
 # ============================================
+# Flutter
+# ============================================
+**/flutter_app/.dart_tool/
+**/flutter_app/.flutter-plugins
+**/flutter_app/.flutter-plugins-dependencies
+**/flutter_app/.packages
+**/flutter_app/build/
+**/flutter_app/.pub-cache/
+**/flutter_app/.pub/
+
+# ============================================
 # Angular build & cache
 # ============================================
 .angular/
@@ -52,6 +63,27 @@ temp/
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+# ============================================
+# Visual Studio / .NET
+# ============================================
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.dll
+*.exe
+*.pdb
+*.cache
+project.lock.json
+project.fragment.lock.json
+artifacts/
 
 # ============================================
 # OS files

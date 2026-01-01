@@ -23,7 +23,7 @@ export const API_PORT = 3000;
 export const USE_PHYSICAL_DEVICE = true;
 
 // Production API URL (for production builds)
-export const PRODUCTION_API_URL = 'https://your-production-api.com';
+export const PRODUCTION_API_URL = 'http://asentyx.com:4000';
 
 // ============================================
 // API URL Builder
@@ -32,12 +32,19 @@ export const PRODUCTION_API_URL = 'https://your-production-api.com';
  * Get the API base URL based on the current environment and platform
  */
 export const getApiBaseUrl = (): string => {
-  // Production mode
+  // Always use production API URL for APK builds
+  // Production mode - use production API URL
   if (!__DEV__) {
     return PRODUCTION_API_URL;
   }
 
-  // Development mode
+  // Force production URL for APK builds (even in debug mode)
+  // This ensures the APK uses the production server
+  return PRODUCTION_API_URL;
+
+  // Development mode (only used when running with Expo dev server)
+  // Uncomment below if you need local development
+  /*
   const baseUrl = `http://${API_HOST_IP}:${API_PORT}`;
 
   if (Platform.OS === 'android') {
@@ -60,6 +67,7 @@ export const getApiBaseUrl = (): string => {
     // Web or other - use localhost
     return `http://localhost:${API_PORT}`;
   }
+  */
 };
 
 // Export the API base URL as a constant

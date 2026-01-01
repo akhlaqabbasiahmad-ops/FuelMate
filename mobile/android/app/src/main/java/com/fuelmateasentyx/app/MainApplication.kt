@@ -1,4 +1,4 @@
-package com.fuelmate.app
+package com.fuelmateasentyx.app
 
 import android.app.Application
 import android.content.res.Configuration

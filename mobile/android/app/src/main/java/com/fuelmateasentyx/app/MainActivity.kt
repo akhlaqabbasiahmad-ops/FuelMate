@@ -1,4 +1,4 @@
-package com.fuelmate.app
+package com.fuelmateasentyx.app
 
 import android.os.Build
 import android.os.Bundle

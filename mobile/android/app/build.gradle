@@ -68,7 +68,7 @@ react {
 /**
  * Set this to true in release builds to optimize the app using [R8](https://developer.android.com/topic/performance/app-optimization/enable-app-optimization).
  */
-def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBuilds') ?: false).toBoolean()
+def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBuilds') ?: 'true').toBoolean()
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -89,9 +89,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.fuelmate.app'
+    namespace 'com.fuelmateasentyx.app'
     defaultConfig {
-        applicationId 'com.fuelmate.app'
+        applicationId 'com.fuelmateasentyx.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -106,19 +106,39 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (project.hasProperty('MYAPP_RELEASE_STORE_FILE')) {
+                storeFile file(MYAPP_RELEASE_STORE_FILE)
+                storePassword MYAPP_RELEASE_STORE_PASSWORD
+                keyAlias MYAPP_RELEASE_KEY_ALIAS
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD
+            } else {
+                // Load from keystore.properties file
+                def keystorePropertiesFile = rootProject.file("keystore.properties")
+                if (keystorePropertiesFile.exists()) {
+                    def keystoreProperties = new Properties()
+                    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                    storeFile file(rootProject.file(keystoreProperties['storeFile']))
+                    storePassword keystoreProperties['storePassword']
+                    keyAlias keystoreProperties['keyAlias']
+                    keyPassword keystoreProperties['keyPassword']
+                }
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
+            signingConfig signingConfigs.release
+            // Enable code shrinking, obfuscation, and optimization
+            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'true'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            // Ensure ProGuard is applied to rename conflicting classes
+            proguardFile "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
         }
@@ -151,6 +171,28 @@ android {
         options.each {
             android.packagingOptions[prop] += it
         }
+    }
+}
+
+// Fix generated ReactNativeApplicationEntryPoint.java to use correct package name
+task fixPackageName {
+    doLast {
+        def entryPointFile = file("build/generated/autolinking/src/main/java/com/facebook/react/ReactNativeApplicationEntryPoint.java")
+        if (entryPointFile.exists()) {
+            def content = entryPointFile.text
+            content = content.replaceAll("com\\.fuelmate\\.app", "com.fuelmateasentyx.app")
+            entryPointFile.text = content
+            println "Fixed package name in ReactNativeApplicationEntryPoint.java"
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.named("compileReleaseJavaWithJavac").configure {
+        dependsOn fixPackageName
+    }
+    tasks.named("compileDebugJavaWithJavac").configure {
+        dependsOn fixPackageName
     }
 }
 

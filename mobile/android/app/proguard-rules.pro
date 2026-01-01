@@ -11,4 +11,15 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# Rename conflicting LicenseContentProvider class to avoid Google Play conflicts
+# Repackage the entire com.pairip package to our namespace
+-repackageclasses 'com.fuelmateasentyx.app.internal'
+-keep class com.pairip.licensecheck.LicenseContentProvider {
+    <init>(...);
+    <methods>;
+    <fields>;
+}
+# Keep the class but rename the package
+-keepnames class com.pairip.licensecheck.LicenseContentProvider
+
 # Add any project specific keep options here:
