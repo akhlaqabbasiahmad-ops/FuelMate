@@ -35,6 +35,7 @@ builder.Services.AddSingleton<DapperContext>();
 
 // Register Services
 builder.Services.AddSingleton<LocationService>();
+builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddScoped<UsersService>();
 builder.Services.AddScoped<RequestsService>();
 builder.Services.AddScoped<ChatService>();

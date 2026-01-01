@@ -464,6 +464,7 @@ public class RequestsController : ControllerBase
                 quote.Message,
                 quote.Status,
                 quote.CreatedAt,
+                quote.UpdatedAt,
                 successMessage = "Quote sent successfully to needy user"
             });
         }

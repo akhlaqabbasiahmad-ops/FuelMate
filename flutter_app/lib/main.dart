@@ -4,6 +4,7 @@ import 'providers/user_provider.dart';
 import 'providers/request_provider.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/name_input_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/requests_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/chat_screen.dart';
@@ -50,6 +51,15 @@ class FuelMateApp extends StatelessWidget {
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
               builder: (context) => NameInputScreen(role: args['role'] as String),
+            );
+          }
+          if (settings.name == '/login') {
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (context) => LoginScreen(
+                username: args['username'] as String,
+                role: args['role'] as String,
+              ),
             );
           }
           if (settings.name == '/chat') {

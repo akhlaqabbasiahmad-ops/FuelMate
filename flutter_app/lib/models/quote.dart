@@ -37,20 +37,20 @@ class Quote {
     final message = json['message'] ?? json['Message'];
     final status = json['status'] ?? json['Status'] ?? 'pending';
     final createdAt = json['createdAt'] ?? json['CreatedAt'];
-    final updatedAt = json['updatedAt'] ?? json['UpdatedAt'];
+    final updatedAt = json['updatedAt'] ?? json['UpdatedAt'] ?? json['CreatedAt']; // Fallback to CreatedAt if UpdatedAt is missing
 
     return Quote(
-      id: id as String,
-      requestId: requestId as String,
-      providerId: providerId as String,
-      providerName: providerName as String?,
-      price: (price as num).toDouble(),
-      currency: currency as String,
+      id: id?.toString() ?? '',
+      requestId: requestId?.toString() ?? '',
+      providerId: providerId?.toString() ?? '',
+      providerName: providerName?.toString(),
+      price: (price as num?)?.toDouble() ?? 0.0,
+      currency: currency?.toString() ?? 'PKR',
       estimatedDeliveryTime: estimatedDeliveryTime as int?,
-      message: message as String?,
-      status: status as String,
-      createdAt: DateTime.parse(createdAt as String),
-      updatedAt: DateTime.parse(updatedAt as String),
+      message: message?.toString(),
+      status: status?.toString() ?? 'pending',
+      createdAt: createdAt != null ? DateTime.parse(createdAt.toString()) : DateTime.now(),
+      updatedAt: updatedAt != null ? DateTime.parse(updatedAt.toString()) : DateTime.now(),
     );
   }
 

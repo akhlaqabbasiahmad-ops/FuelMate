@@ -96,6 +96,20 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set all user data at once (for login/register)
+  Future<void> setUser(String id, String name, String role) async {
+    _userId = id;
+    _userName = name;
+    _userRole = role;
+    await StorageService.saveUserId(id);
+    await StorageService.saveUserName(name);
+    await StorageService.saveUserRole(role);
+    notifyListeners();
+  }
+
+  /// Check if user is logged in
+  bool get isLoggedIn => _userId != null && _userName != null && _userRole != null;
+
   /// Clear user data (logout)
   Future<void> clearUserData() async {
     _userRole = null;

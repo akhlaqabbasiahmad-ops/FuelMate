@@ -21,6 +21,44 @@ class _RequestsScreenState extends State<RequestsScreen> {
     _fetchRequests();
   }
 
+  Future<void> _handleLogout() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // Clear user data
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.clearUserData();
+
+      // Navigate to role selection screen
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/role-selection',
+          (route) => false,
+        );
+      }
+    }
+  }
+
   Future<void> _fetchRequests() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final requestProvider = Provider.of<RequestProvider>(context, listen: false);
@@ -581,6 +619,12 @@ class _RequestsScreenState extends State<RequestsScreen> {
             onPressed: () {
               Navigator.pushNamed(context, '/history');
             },
+            tooltip: 'History',
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _handleLogout,
+            tooltip: 'Logout',
           ),
         ],
       ),

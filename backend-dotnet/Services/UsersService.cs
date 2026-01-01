@@ -7,10 +7,12 @@ namespace FuelMateBackend.Services;
 public class UsersService
 {
     private readonly DapperContext _context;
+    private readonly PasswordService _passwordService;
 
-    public UsersService(DapperContext context)
+    public UsersService(DapperContext context, PasswordService passwordService)
     {
         _context = context;
+        _passwordService = passwordService;
     }
 
     public async Task<bool> IsNameAvailable(string name)
@@ -125,6 +127,112 @@ public class UsersService
     private static string NormalizeName(string name)
     {
         return name.Trim().ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Register a new user with password
+    /// </summary>
+    public async Task<User> RegisterWithPassword(string name, string password, string role)
+    {
+        var normalizedName = NormalizeName(name);
+        
+        // Validate password
+        if (!_passwordService.IsPasswordValid(password, out var errorMessage))
+        {
+            throw new ArgumentException(errorMessage);
+        }
+
+        using var connection = _context.CreateConnection();
+        
+        // Check if user already exists
+        var existingUser = await connection.QueryFirstOrDefaultAsync<User>(
+            "SELECT * FROM Users WHERE Name = @Name",
+            new { Name = normalizedName });
+        
+        if (existingUser != null)
+        {
+            throw new InvalidOperationException($"User with name '{normalizedName}' already exists");
+        }
+
+        // Hash password
+        var passwordHash = _passwordService.HashPassword(password);
+
+        // Create new user
+        var userId = GenerateUserId(role);
+        var now = DateTime.UtcNow;
+        
+        var newUser = new User
+        {
+            Id = userId,
+            Name = normalizedName,
+            Role = role,
+            PasswordHash = passwordHash,
+            CreatedAt = now,
+            LastLoginAt = now
+        };
+
+        await connection.ExecuteAsync(
+            @"INSERT INTO Users (Id, Name, Role, PasswordHash, CreatedAt, LastLoginAt)
+              VALUES (@Id, @Name, @Role, @PasswordHash, @CreatedAt, @LastLoginAt)",
+            newUser);
+
+        Console.WriteLine($"✅ New user registered: {newUser.Name} ({newUser.Id})");
+        return newUser;
+    }
+
+    /// <summary>
+    /// Login user with password
+    /// </summary>
+    public async Task<User?> LoginWithPassword(string name, string password, string role)
+    {
+        var normalizedName = NormalizeName(name);
+        using var connection = _context.CreateConnection();
+        
+        var user = await connection.QueryFirstOrDefaultAsync<User>(
+            "SELECT * FROM Users WHERE Name = @Name AND Role = @Role",
+            new { Name = normalizedName, Role = role });
+        
+        if (user == null)
+        {
+            Console.WriteLine($"❌ User not found: {normalizedName} ({role})");
+            return null;
+        }
+
+        // Check if user has empty password (old user)
+        if (string.IsNullOrEmpty(user.PasswordHash))
+        {
+            Console.WriteLine($"⚠️ User {user.Name} has no password set - needs to set password");
+            throw new InvalidOperationException("PASSWORD_NOT_SET");
+        }
+
+        // Verify password
+        if (!_passwordService.VerifyPassword(password, user.PasswordHash))
+        {
+            Console.WriteLine($"❌ Invalid password for user: {normalizedName}");
+            return null;
+        }
+
+        // Update last login
+        await connection.ExecuteAsync(
+            "UPDATE Users SET LastLoginAt = @LastLoginAt WHERE Id = @Id",
+            new { Id = user.Id, LastLoginAt = DateTime.UtcNow });
+        
+        user.LastLoginAt = DateTime.UtcNow;
+        Console.WriteLine($"✅ User logged in: {user.Name} ({user.Id})");
+        return user;
+    }
+
+    /// <summary>
+    /// Check if user exists (for checking before login/register)
+    /// </summary>
+    public async Task<User?> GetUserByName(string name, string role)
+    {
+        var normalizedName = NormalizeName(name);
+        using var connection = _context.CreateConnection();
+        
+        return await connection.QueryFirstOrDefaultAsync<User>(
+            "SELECT * FROM Users WHERE Name = @Name AND Role = @Role",
+            new { Name = normalizedName, Role = role });
     }
 
     private static string GenerateUserId(string role)

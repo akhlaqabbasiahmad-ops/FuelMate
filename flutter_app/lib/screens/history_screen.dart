@@ -22,6 +22,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _fetchHistory();
   }
 
+  Future<void> _handleLogout() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // Clear user data
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.clearUserData();
+
+      // Navigate to role selection screen
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/role-selection',
+          (route) => false,
+        );
+      }
+    }
+  }
+
   Future<void> _fetchHistory() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final userId = userProvider.userId;
@@ -78,6 +116,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: const Text('Request History'),
         backgroundColor: const Color(0xFFFF6B35),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _handleLogout,
+            tooltip: 'Logout',
+          ),
+        ],
       ),
       body: _isLoading && _history.isEmpty
           ? const Center(
