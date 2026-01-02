@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
+import '../services/firebase_auth_service.dart';
 import '../providers/user_provider.dart';
 import 'login_screen.dart';
 
@@ -15,6 +15,7 @@ class NameInputScreen extends StatefulWidget {
 
 class _NameInputScreenState extends State<NameInputScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _authService = FirebaseAuthService();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -52,7 +53,7 @@ class _NameInputScreenState extends State<NameInputScreen> {
     });
 
     try {
-      final result = await AuthService.checkUserExists(name, widget.role);
+      final result = await _authService.checkUserExists(name, widget.role);
       setState(() {
         _userExists = result['exists'] as bool;
         
@@ -95,10 +96,10 @@ class _NameInputScreenState extends State<NameInputScreen> {
     });
 
     try {
-      final user = await AuthService.register(
-        _nameController.text.trim(),
-        _passwordController.text,
-        widget.role,
+      final user = await _authService.register(
+        username: _nameController.text.trim(),
+        password: _passwordController.text,
+        role: widget.role,
       );
 
       if (!mounted) return;
@@ -269,7 +270,7 @@ class _NameInputScreenState extends State<NameInputScreen> {
                     ),
                     enabled: !_isRegistering,
                     validator: (value) {
-                      return AuthService.validatePassword(value ?? '');
+                      return FirebaseAuthService.validatePassword(value ?? '');
                     },
                   ),
                   const SizedBox(height: 16),
@@ -300,7 +301,7 @@ class _NameInputScreenState extends State<NameInputScreen> {
                     ),
                     enabled: !_isRegistering,
                     validator: (value) {
-                      return AuthService.validatePasswordConfirmation(
+                      return FirebaseAuthService.validatePasswordConfirmation(
                         _passwordController.text,
                         value ?? '',
                       );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
-import '../services/auth_service.dart';
+import '../services/firebase_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final String username;
@@ -19,6 +19,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _authService = FirebaseAuthService();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -41,10 +42,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final user = await AuthService.login(
-        widget.username,
-        _passwordController.text,
-        widget.role,
+      final user = await _authService.login(
+        username: widget.username,
+        password: _passwordController.text,
+        role: widget.role,
       );
 
       if (!mounted) return;

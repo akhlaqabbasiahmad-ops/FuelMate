@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/user_provider.dart';
 import '../providers/request_provider.dart';
-import '../services/request_service.dart';
-import '../services/quote_service.dart';
+import '../services/firestore_request_service.dart';
+import '../services/firestore_quote_service.dart';
+import '../services/firestore_chat_service.dart';
 import '../widgets/create_request_dialog.dart';
 import '../models/quote.dart';
 
@@ -15,10 +19,39 @@ class RequestsScreen extends StatefulWidget {
 }
 
 class _RequestsScreenState extends State<RequestsScreen> {
+  final FirestoreRequestService _requestService = FirestoreRequestService();
+  final FirestoreQuoteService _quoteService = FirestoreQuoteService();
+  final FirestoreChatService _chatService = FirestoreChatService();
+
   @override
   void initState() {
     super.initState();
-    _fetchRequests();
+    _setupRealtimeUpdates();
+  }
+
+  void _setupRealtimeUpdates() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final userId = userProvider.userId;
+    final userRole = userProvider.userRole;
+
+    if (userId == null || userRole == null) {
+      print('⚠️ User not logged in, cannot setup real-time updates');
+      return;
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+    
+    // Setup real-time listeners
+    requestProvider.watchRequests(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      userId: userId,
+      userRole: userRole,
+    );
   }
 
   Future<void> _handleLogout() async {
@@ -45,6 +78,10 @@ class _RequestsScreenState extends State<RequestsScreen> {
     );
 
     if (confirmed == true && mounted) {
+      // Clear request provider data (requests and quotes)
+      final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+      requestProvider.clear();
+
       // Clear user data
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await userProvider.clearUserData();
@@ -92,7 +129,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       final deliveryFee = 50.0;
       final totalPrice = (pricePerLiter * quantityLiters) + deliveryFee;
 
-      await QuoteService.createQuote(
+      await _quoteService.createQuote(
         requestId: requestId,
         providerId: userId,
         price: totalPrice,
@@ -172,14 +209,29 @@ class _RequestsScreenState extends State<RequestsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey[700],
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF6B35),
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Send Quote'),
+            child: const Text(
+              'Send Quote',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -197,7 +249,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       }
 
       try {
-        await QuoteService.createQuote(
+        await _quoteService.createQuote(
           requestId: requestId,
           providerId: userId,
           price: price,
@@ -257,7 +309,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
     if (confirm == true) {
       try {
-        await QuoteService.acceptQuote(quote.id, userId);
+        await _quoteService.acceptQuote(quote.id, userId);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -311,7 +363,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
     if (confirm == true) {
       try {
-        await RequestService.completeRequest(requestId, userId, userRole);
+        await _requestService.completeRequest(requestId);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -412,19 +464,77 @@ class _RequestsScreenState extends State<RequestsScreen> {
             // Details
             const SizedBox(height: 10),
             if (request.quantityLiters != null)
-              Text(
-                '⛽ Quantity: ${request.quantityLiters} liters',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
+              Row(
+                children: [
+                  const Icon(Icons.local_gas_station, size: 16, color: Color(0xFF666666)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Quantity: ${request.quantityLiters} liters',
+                    style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
+                  ),
+                ],
               ),
-            if (request.distance != null)
-              Text(
-                '📍 Distance: ${request.distance!.toStringAsFixed(2)} km away',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
-              ),
+            const SizedBox(height: 5),
+            
+            // Distance with Map button
+            // Show for: 1) Provider viewing needy requests, 2) Needy viewing accepted requests (to see provider location)
+            if (!isMyRequest || (isMyRequest && request.status == 'accepted' && request.acceptedBy != null))
+              _buildDistanceAndMapRow(request),
+            
+            const SizedBox(height: 5),
             Text(
-              '📊 Status: ${request.status} | Type: ${request.type ?? 'undefined'}',
+              '📊 Status: ${request.status}',
               style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
             ),
+
+            // Provider information for accepted requests (shown to needy)
+            if (isMyRequest && request.status == 'accepted' && request.acceptedBy != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.local_shipping, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Provider Assigned',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Provider ID: ${request.acceptedBy}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF666666),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Your request has been accepted and the provider is on the way!',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             // Quotes section for needy's own requests
             if (isMyRequest && pendingQuotes.isNotEmpty) ...[
@@ -451,12 +561,29 @@ class _RequestsScreenState extends State<RequestsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'PKR ${quote.price.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFFF6B35),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'PKR ${quote.price.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFFF6B35),
+                                ),
+                              ),
+                              if (quote.providerName != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Provider: ${quote.providerName}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF999999),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         Text(
@@ -478,6 +605,24 @@ class _RequestsScreenState extends State<RequestsScreen> {
                         ),
                       ),
                     ],
+                    // Distance and map button for provider
+                    const SizedBox(height: 8),
+                    FutureBuilder<Map<String, double>?>(
+                      future: _getProviderLocation(quote.providerId),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          final providerLat = snapshot.data!['latitude']!;
+                          final providerLng = snapshot.data!['longitude']!;
+                          
+                          return _buildQuoteDistanceRow(
+                            providerLat,
+                            providerLng,
+                            quote.providerName ?? 'Provider',
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
@@ -485,8 +630,12 @@ class _RequestsScreenState extends State<RequestsScreen> {
                         onPressed: () => _acceptQuote(quote),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                         ),
-                        child: const Text('Accept Quote'),
+                        child: const Text(
+                          'Accept Quote',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
@@ -535,9 +684,15 @@ class _RequestsScreenState extends State<RequestsScreen> {
                     child: OutlinedButton(
                       onPressed: () => _sendCustomQuote(request.id),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFFF6B35)),
+                        side: const BorderSide(color: Color(0xFFFF6B35), width: 2),
+                        foregroundColor: const Color(0xFFFF6B35),
                       ),
-                      child: const Text('Custom Quote'),
+                      child: const Text(
+                        'Custom Quote',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -550,19 +705,54 @@ class _RequestsScreenState extends State<RequestsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/chat',
-                          arguments: request.id,
+                    child: StreamBuilder<int>(
+                      stream: _chatService.watchUnreadCount(request.id, userId),
+                      builder: (context, snapshot) {
+                        final unreadCount = snapshot.data ?? 0;
+                        return Stack(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  '/chat',
+                                  arguments: request.id,
+                                );
+                              },
+                              icon: const Icon(Icons.chat),
+                              label: const Text('Chat'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                              ),
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: 8,
+                                top: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 20,
+                                    minHeight: 20,
+                                  ),
+                                  child: Text(
+                                    unreadCount > 99 ? '99+' : '$unreadCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
                         );
                       },
-                      icon: const Icon(Icons.chat),
-                      label: const Text('Chat'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -614,6 +804,11 @@ class _RequestsScreenState extends State<RequestsScreen> {
         ),
         backgroundColor: const Color(0xFFFF6B35),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.map_outlined),
+            onPressed: _showMapView,
+            tooltip: 'Map View',
+          ),
           IconButton(
             icon: const Icon(Icons.history),
             onPressed: () {
@@ -711,10 +906,330 @@ class _RequestsScreenState extends State<RequestsScreen> {
                 }
               },
               backgroundColor: const Color(0xFFFF6B35),
-              icon: const Icon(Icons.add),
-              label: const Text('Create Request'),
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                'Create Request',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             )
           : null,
+    );
+  }
+
+  // Calculate distance and show map button
+  Widget _buildDistanceAndMapRow(dynamic request) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentLocation = userProvider.location;
+    final userRole = userProvider.userRole;
+    
+    if (currentLocation == null) {
+      return const Row(
+        children: [
+          Icon(Icons.location_off, size: 16, color: Colors.grey),
+          SizedBox(width: 4),
+          Text(
+            'Location unavailable',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      );
+    }
+
+    // Calculate distance using Geolocator
+    final distanceInMeters = Geolocator.distanceBetween(
+      currentLocation.latitude,
+      currentLocation.longitude,
+      request.latitude,
+      request.longitude,
+    );
+    final distanceInKm = distanceInMeters / 1000;
+
+    // Determine what we're showing distance to
+    final isAcceptedByProvider = request.status == 'accepted' && request.acceptedBy != null;
+    final locationLabel = (userRole == 'needy' && isAcceptedByProvider) 
+        ? "Provider's location" 
+        : request.name ?? 'Location';
+
+    return Row(
+      children: [
+        const Icon(Icons.location_on, size: 16, color: Color(0xFFFF6B35)),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            '${distanceInKm.toStringAsFixed(2)} km away${(userRole == 'needy' && isAcceptedByProvider) ? ' (Provider)' : ''}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF333333),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Map button
+        InkWell(
+          onTap: () => _openInMaps(
+            request.latitude,
+            request.longitude,
+            locationLabel,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF6B35).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFFFF6B35), width: 1),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.map, size: 14, color: Color(0xFFFF6B35)),
+                SizedBox(width: 4),
+                Text(
+                  'Open Map',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFFF6B35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Open location in Google Maps
+  Future<void> _openInMaps(double latitude, double longitude, String label) async {
+    // Try Google Maps first
+    final googleMapsUrl = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude'
+    );
+    
+    // For Android, try the native Google Maps app
+    final googleMapsAppUrl = Uri.parse(
+      'geo:$latitude,$longitude?q=$latitude,$longitude($label)'
+    );
+
+    try {
+      // Try to open in Google Maps app first (better experience)
+      if (await canLaunchUrl(googleMapsAppUrl)) {
+        await launchUrl(googleMapsAppUrl, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(googleMapsUrl)) {
+        // Fallback to browser
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not open maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Could not open maps: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Show all nearby requests/providers on a map view dialog
+  void _showMapView() {
+    final requestProvider = Provider.of<RequestProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final requests = requestProvider.requests;
+    final currentLocation = userProvider.location;
+
+    if (currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location not available')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nearby Locations'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              // Current user location
+              ListTile(
+                leading: const Icon(Icons.my_location, color: Colors.blue),
+                title: const Text('Your Location'),
+                subtitle: Text(
+                  '${currentLocation.latitude.toStringAsFixed(6)}, ${currentLocation.longitude.toStringAsFixed(6)}',
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.map, color: Color(0xFFFF6B35)),
+                  onPressed: () => _openInMaps(
+                    currentLocation.latitude,
+                    currentLocation.longitude,
+                    'My Location',
+                  ),
+                ),
+              ),
+              const Divider(),
+              // All nearby requests/providers
+              ...requests.map((request) {
+                final distance = Geolocator.distanceBetween(
+                  currentLocation.latitude,
+                  currentLocation.longitude,
+                  request.latitude,
+                  request.longitude,
+                ) / 1000;
+
+                return ListTile(
+                  leading: Icon(
+                    request.role == 'needy' ? Icons.person : Icons.local_shipping,
+                    color: const Color(0xFFFF6B35),
+                  ),
+                  title: Text(request.name ?? 'Unknown'),
+                  subtitle: Text(
+                    '${request.message} • ${distance.toStringAsFixed(2)} km away',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.map, color: Color(0xFFFF6B35)),
+                    onPressed: () => _openInMaps(
+                      request.latitude,
+                      request.longitude,
+                      request.name ?? 'Location',
+                    ),
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get provider location from Firestore
+  Future<Map<String, double>?> _getProviderLocation(String providerId) async {
+    try {
+      // For now, we'll get it from the users collection
+      // In a real app, providers would update their location regularly
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(providerId)
+          .get();
+      
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        if (data != null && data['latitude'] != null && data['longitude'] != null) {
+          return {
+            'latitude': (data['latitude'] as num).toDouble(),
+            'longitude': (data['longitude'] as num).toDouble(),
+          };
+        }
+      }
+      
+      // If no location in users, try to get from recent requests
+      final requestsSnapshot = await FirebaseFirestore.instance
+          .collection('petrolRequests')
+          .where('userId', isEqualTo: providerId)
+          .orderBy('updatedAt', descending: true)
+          .limit(1)
+          .get();
+      
+      if (requestsSnapshot.docs.isNotEmpty) {
+        final data = requestsSnapshot.docs.first.data();
+        return {
+          'latitude': (data['latitude'] as num).toDouble(),
+          'longitude': (data['longitude'] as num).toDouble(),
+        };
+      }
+      
+      return null;
+    } catch (e) {
+      print('❌ Error getting provider location: $e');
+      return null;
+    }
+  }
+
+  // Build distance row for quotes (showing distance to provider)
+  Widget _buildQuoteDistanceRow(double providerLat, double providerLng, String providerName) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentLocation = userProvider.location;
+    
+    if (currentLocation == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Calculate distance
+    final distanceInMeters = Geolocator.distanceBetween(
+      currentLocation.latitude,
+      currentLocation.longitude,
+      providerLat,
+      providerLng,
+    );
+    final distanceInKm = distanceInMeters / 1000;
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on, size: 14, color: Colors.blue),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '${distanceInKm.toStringAsFixed(2)} km away',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => _openInMaps(providerLat, providerLng, providerName),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.map, size: 12, color: Colors.white),
+                  SizedBox(width: 3),
+                  Text(
+                    'Map',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

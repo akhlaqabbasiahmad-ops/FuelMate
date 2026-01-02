@@ -6,19 +6,32 @@ FuelMate is an on-demand petrol delivery platform connecting Petrol Needers with
 
 ```
 PetrolMate/
-├── backend/          # NestJS backend API
+├── backend/              # NestJS backend API
 │   ├── src/
-│   │   ├── agent/   # AI agent module
-│   │   ├── location/# Location matching service
-│   │   └── safety/  # Safety validation
+│   │   ├── agent/       # AI agent module
+│   │   ├── location/    # Location matching service
+│   │   └── safety/      # Safety validation
 │   └── package.json
 │
-└── mobile/          # React Native mobile app
-    ├── src/
-    │   ├── screens/ # App screens
-    │   ├── services/# API services
-    │   └── context/ # React contexts
-    └── package.json
+├── mobile/              # React Native mobile app
+│   ├── src/
+│   │   ├── screens/     # App screens
+│   │   ├── services/    # API services
+│   │   └── context/     # React contexts
+│   └── package.json
+│
+├── flutter_app/         # Flutter mobile app
+│   └── ...
+│
+├── docs/
+│   └── ai-generated/    # AI-generated documentation
+│
+├── scripts/             # Automation and utility scripts
+│   ├── BUILD_*.ps1      # Build scripts
+│   ├── RUN_*.ps1        # Run scripts
+│   └── ...
+│
+└── README.md
 ```
 
 ## Features
@@ -125,6 +138,24 @@ Then press:
 - React Navigation
 - Expo Location
 - Axios for API calls
+
+## Project Organization
+
+### Documentation
+- **`docs/ai-generated/`** - Contains all AI-generated documentation files (implementation plans, fix guides, migration docs, etc.)
+- **`README.md`** files in subdirectories - Project-specific documentation
+
+### Scripts
+- **`scripts/`** - Contains all automation and utility scripts
+  - Build scripts: `BUILD_AAB.ps1`, `BUILD_AAB_RELEASE.ps1`
+  - Run scripts: `RUN_BOTH.ps1`, `run-backend.ps1`, `run-mobile.ps1`
+  - Setup scripts: `CREATE_KEYSTORE_*.ps1`, `SETUP_*.ps1`
+  - Utility scripts: `QUICK_TEST.ps1`, `FIND_IP.ps1`, etc.
+
+Scripts can be run from the project root:
+```powershell
+.\scripts\SCRIPT_NAME.ps1
+```
 
 ## License
 

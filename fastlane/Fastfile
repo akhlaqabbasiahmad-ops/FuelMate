@@ -1,0 +1,146 @@
+# Fastfile for FuelMate - Automated Play Store Deployment
+# More information: https://docs.fastlane.tools/getting-started/android/setup/
+
+default_platform(:android)
+
+# Set Google Play API key path
+ENV["GOOGLE_APPLICATION_CREDENTIALS"] ||= File.expand_path("api-key.json", __dir__)
+
+platform :android do
+  desc "Build release AAB"
+  lane :build do
+    # Navigate to Flutter app directory
+    sh("cd ../flutter_app && flutter clean")
+    sh("cd ../flutter_app && flutter pub get")
+    
+    # Build AAB with debug info splitting
+    sh("cd ../flutter_app && flutter build appbundle --release --split-debug-info=build/app/debug-info")
+    
+    # Return path to AAB
+    aab_path = "../flutter_app/build/app/outputs/bundle/release/app-release.aab"
+    
+    if File.exist?(aab_path)
+      UI.success("✅ AAB built successfully: #{aab_path}")
+      return aab_path
+    else
+      UI.user_error!("❌ AAB file not found at: #{aab_path}")
+    end
+  end
+
+  desc "Upload AAB to Play Store Internal Testing"
+  lane :internal do
+    aab_path = build
+    
+    upload_to_play_store(
+      aab: aab_path,
+      track: "internal", # Options: internal, alpha, beta, production
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    
+    UI.success("✅ Successfully uploaded to Play Store Internal Testing!")
+  end
+
+  desc "Upload AAB to Play Store Alpha Track"
+  lane :alpha do
+    aab_path = build
+    
+    upload_to_play_store(
+      aab: aab_path,
+      track: "alpha",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    
+    UI.success("✅ Successfully uploaded to Play Store Alpha track!")
+  end
+
+  desc "Upload AAB to Play Store Beta Track"
+  lane :beta do
+    aab_path = build
+    
+    upload_to_play_store(
+      aab: aab_path,
+      track: "beta",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    
+    UI.success("✅ Successfully uploaded to Play Store Beta track!")
+  end
+
+  desc "Upload AAB to Play Store Production"
+  lane :production do
+    aab_path = build
+    
+    upload_to_play_store(
+      aab: aab_path,
+      track: "production",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    
+    UI.success("✅ Successfully uploaded to Play Store Production!")
+  end
+
+  desc "Upload existing AAB file to Play Store"
+  lane :upload do |options|
+    aab_path = options[:aab] || "../flutter_app/build/app/outputs/bundle/release/app-release.aab"
+    track = options[:track] || "internal"
+    
+    unless File.exist?(aab_path)
+      UI.user_error!("❌ AAB file not found at: #{aab_path}")
+    end
+    
+    upload_to_play_store(
+      aab: aab_path,
+      track: track,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+    
+    UI.success("✅ Successfully uploaded to Play Store #{track} track!")
+  end
+
+  desc "Increment version code and build"
+  lane :version_bump do
+    # Read current version from pubspec.yaml
+    pubspec_path = "../flutter_app/pubspec.yaml"
+    pubspec_content = File.read(pubspec_path)
+    
+    # Extract version (format: version: 1.0.0+1)
+    if pubspec_content =~ /version:\s*(\d+\.\d+\.\d+)\+(\d+)/
+      current_version = $1
+      current_build = $2.to_i
+      new_build = current_build + 1
+      
+      # Update version
+      new_content = pubspec_content.gsub(
+        /version:\s*\d+\.\d+\.\d+\+\d+/,
+        "version: #{current_version}+#{new_build}"
+      )
+      
+      File.write(pubspec_path, new_content)
+      UI.success("✅ Version bumped: #{current_version}+#{new_build}")
+    else
+      UI.user_error!("❌ Could not parse version from pubspec.yaml")
+    end
+  end
+
+  desc "Complete release: bump version, build, and upload"
+  lane :release do |options|
+    track = options[:track] || "internal"
+    
+    version_bump
+    aab_path = build
+    upload(track: track)
+    
+    UI.success("🎉 Release complete! Uploaded to #{track} track")
+  end
+end
+

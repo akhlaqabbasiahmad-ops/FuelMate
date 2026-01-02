@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/request_service.dart';
-import '../services/storage_service.dart';
-import '../models/petrol_request.dart';
+import 'package:provider/provider.dart';
+import '../services/firestore_request_service.dart';
+import '../providers/user_provider.dart';
 
 class CreateRequestDialog extends StatefulWidget {
   final double latitude;
@@ -21,6 +21,7 @@ class CreateRequestDialog extends StatefulWidget {
 
 class _CreateRequestDialogState extends State<CreateRequestDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _requestService = FirestoreRequestService();
   final _messageController = TextEditingController();
   final _quantityController = TextEditingController();
   String _urgency = 'normal';
@@ -45,33 +46,38 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
     });
 
     try {
-      final userId = await StorageService.getUserId();
-      if (userId == null) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userId = userProvider.userId;
+      final userName = userProvider.userName;
+      final userRole = userProvider.userRole;
+
+      if (userId == null || userName == null || userRole == null) {
         throw Exception('User not logged in');
       }
 
       final quantity = _quantityController.text.isNotEmpty
-          ? double.tryParse(_quantityController.text)
-          : null;
+          ? double.tryParse(_quantityController.text) ?? 20.0
+          : 20.0;
 
-      // Create request data
-      final requestData = CreateRequestData(
+      // Create request in Firestore
+      await _requestService.createRequest(
         userId: userId,
+        userName: userName,
+        userRole: userRole,
         latitude: widget.latitude,
         longitude: widget.longitude,
-        message: _messageController.text.trim(),
+        message: _messageController.text.trim().isNotEmpty
+            ? _messageController.text.trim()
+            : 'Need petrol',
         quantityLiters: quantity,
         urgency: _urgency,
-        userRole: 'needy',
       );
-
-      await RequestService.createRequest(requestData);
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Request created successfully!'),
+            content: Text('✅ Request created successfully!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -192,12 +198,22 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.grey[700],
+          ),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _createRequest,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFF6B35),
+            foregroundColor: Colors.white,
           ),
           child: _isLoading
               ? const SizedBox(
@@ -208,7 +224,12 @@ class _CreateRequestDialogState extends State<CreateRequestDialog> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : const Text('Create Request'),
+              : const Text(
+                  'Create Request',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ),
       ],
     );

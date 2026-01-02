@@ -1,8 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/storage_service.dart';
+import '../services/firebase_auth_service.dart';
+import '../services/fcm_service.dart';
 
 class UserProvider with ChangeNotifier {
+  final FirebaseAuthService _authService = FirebaseAuthService();
+  final FCMService _fcmService = FCMService();
+  
   String? _userRole;
   String? _userId;
   String? _userName;
@@ -65,6 +70,16 @@ class UserProvider with ChangeNotifier {
         _userName = await StorageService.getUserName();
         _userRole = await StorageService.getUserRole();
         print('✅ User is registered: $_userName ($_userRole)');
+        
+        // Save FCM token to Firestore
+        if (_userId != null) {
+          await _fcmService.saveFCMTokenToFirestore(_userId!);
+          
+          // Subscribe to role-specific topic
+          if (_userRole != null) {
+            await _fcmService.subscribeToRoleTopic(_userRole!);
+          }
+        }
       } else {
         print('⚠️ User not registered');
       }
@@ -104,6 +119,13 @@ class UserProvider with ChangeNotifier {
     await StorageService.saveUserId(id);
     await StorageService.saveUserName(name);
     await StorageService.saveUserRole(role);
+    
+    // Save FCM token to Firestore
+    await _fcmService.saveFCMTokenToFirestore(id);
+    
+    // Subscribe to role-specific topic
+    await _fcmService.subscribeToRoleTopic(role);
+    
     notifyListeners();
   }
 
@@ -116,6 +138,7 @@ class UserProvider with ChangeNotifier {
     _userId = null;
     _userName = null;
     await StorageService.clearUserData();
+    await _authService.logout(); // Firebase logout
     notifyListeners();
   }
 

@@ -105,3 +105,9 @@ coverage/
 .next/
 .nuxt/
 storybook-static/
+
+# ============================================
+# Fastlane
+# ============================================
+fastlane/api-key.json
+Gemfile.lock

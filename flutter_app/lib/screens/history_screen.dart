@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/user_provider.dart';
-import '../services/request_service.dart';
+import '../services/firestore_request_service.dart';
 import '../models/petrol_request.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -13,6 +13,7 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
+  final FirestoreRequestService _requestService = FirestoreRequestService();
   List<PetrolRequest> _history = [];
   bool _isLoading = false;
 
@@ -72,14 +73,71 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final history = await RequestService.getRequestHistory(userId, userRole);
+      final history = await _requestService.getRequestHistory(userId, userRole);
       setState(() => _history = history);
     } catch (error) {
       print('Error fetching history: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load history: $error')),
-        );
+        // Check if it's an index error
+        final errorStr = error.toString().toLowerCase();
+        if (errorStr.contains('index') || errorStr.contains('failed-precondition')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                '⚠️ Database index required!\n\nCheck Flutter logs for the index creation link.',
+                style: TextStyle(fontSize: 14),
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'HOW TO FIX',
+                textColor: Colors.white,
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Missing Database Index'),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'To view history, create a Firestore index:\n',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const Text('1. Check Flutter terminal logs'),
+                            const Text('2. Look for error with Firebase link'),
+                            const Text('3. Click the link to create index'),
+                            const Text('4. Wait 5-10 minutes'),
+                            const Text('5. Refresh this screen\n'),
+                            Text(
+                              'Or see PROVIDER_HISTORY_FIX.md for detailed instructions.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Got it'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load history: $error')),
+          );
+        }
       }
     } finally {
       setState(() => _isLoading = false);

@@ -1,0 +1,5 @@
+# Appfile for FuelMate Android App
+# More information: https://docs.fastlane.tools/advanced/#appfile
+
+package_name("com.asentyx.fuelmate") # Package name from build.gradle.kts
+

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 import 'providers/user_provider.dart';
 import 'providers/request_provider.dart';
+import 'services/notification_service.dart';
+import 'services/fcm_service.dart';
 import 'screens/role_selection_screen.dart';
 import 'screens/name_input_screen.dart';
 import 'screens/login_screen.dart';
@@ -9,7 +14,23 @@ import 'screens/requests_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/chat_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  // Setup background message handler (must be before any other Firebase calls)
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  
+  // Initialize notification service
+  await NotificationService().initialize();
+  
+  // Initialize FCM service
+  await FCMService().initialize();
+  
   runApp(const FuelMateApp());
 }
 
