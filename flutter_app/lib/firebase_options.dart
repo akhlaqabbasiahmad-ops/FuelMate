@@ -37,20 +37,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBYE7DWhtRbXVqfFLu8emgQQfhdAqk-7v0',
-    appId: '1:342717605808:android:48a03c910a8a1b2fedd875',
-    messagingSenderId: '342717605808',
-    projectId: 'fuelmate-73aaf',
-    storageBucket: 'fuelmate-73aaf.firebasestorage.app',
+    apiKey: 'AIzaSyDS9FhBy87dcI1gtqU_BLPYH433QZrIelA',
+    appId: '1:572087801666:android:0a5f1259945c5356f6dadb',
+    messagingSenderId: '572087801666',
+    projectId: 'fuelmate-a5d7a',
+    storageBucket: 'fuelmate-a5d7a.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBYE7DWhtRbXVqfFLu8emgQQfhdAqk-7v0',
-    appId: '1:342717605808:ios:48a03c910a8a1b2fedd875',
-    messagingSenderId: '342717605808',
-    projectId: 'fuelmate-73aaf',
-    storageBucket: 'fuelmate-73aaf.firebasestorage.app',
-    iosBundleId: 'com.example.fuelmate-flutter',
+    apiKey: 'AIzaSyDS9FhBy87dcI1gtqU_BLPYH433QZrIelA',
+    appId: '1:572087801666:ios:0a5f1259945c5356f6dadb',
+    messagingSenderId: '572087801666',
+    projectId: 'fuelmate-a5d7a',
+    storageBucket: 'fuelmate-a5d7a.firebasestorage.app',
+    iosBundleId: 'com.asentyx.fuelmate',
   );
 }
 

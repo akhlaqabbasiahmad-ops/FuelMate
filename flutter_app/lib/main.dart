@@ -17,19 +17,45 @@ import 'screens/chat_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase only if not already initialized
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    // If Firebase already initialized or other error, continue anyway
+    print('Firebase initialization: $e');
+    // Try to get existing app
+    try {
+      Firebase.app();
+    } catch (_) {
+      // If that fails, app will continue but Firebase features won't work
+      print('Warning: Could not initialize Firebase');
+    }
+  }
   
   // Setup background message handler (must be before any other Firebase calls)
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  try {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    print('FCM background handler setup: $e');
+  }
   
   // Initialize notification service
-  await NotificationService().initialize();
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    print('Notification service initialization: $e');
+  }
   
   // Initialize FCM service
-  await FCMService().initialize();
+  try {
+    await FCMService().initialize();
+  } catch (e) {
+    print('FCM service initialization: $e');
+  }
   
   runApp(const FuelMateApp());
 }
@@ -111,14 +137,23 @@ class _InitializationScreenState extends State<InitializationScreen> {
   }
 
   Future<void> _initialize() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    await userProvider.initializeApp();
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.initializeApp();
 
-    // Navigate to appropriate screen
-    if (mounted) {
-      if (userProvider.userId != null && userProvider.userRole != null) {
-        Navigator.pushReplacementNamed(context, '/requests');
-      } else {
+      // Navigate to appropriate screen
+      if (mounted) {
+        if (userProvider.userId != null && userProvider.userRole != null) {
+          Navigator.pushReplacementNamed(context, '/requests');
+        } else {
+          Navigator.pushReplacementNamed(context, '/role-selection');
+        }
+      }
+    } catch (e) {
+      // Handle initialization errors
+      print('Initialization error: $e');
+      if (mounted) {
+        // Show error or navigate to role selection as fallback
         Navigator.pushReplacementNamed(context, '/role-selection');
       }
     }

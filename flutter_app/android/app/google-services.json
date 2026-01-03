@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "342717605808",
-    "project_id": "fuelmate-73aaf",
-    "storage_bucket": "fuelmate-73aaf.firebasestorage.app"
+    "project_number": "572087801666",
+    "project_id": "fuelmate-a5d7a",
+    "storage_bucket": "fuelmate-a5d7a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:342717605808:android:48a03c910a8a1b2fedd875",
+        "mobilesdk_app_id": "1:572087801666:android:0a5f1259945c5356f6dadb",
         "android_client_info": {
           "package_name": "com.asentyx.fuelmate"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBYE7DWhtRbXVqfFLu8emgQQfhdAqk-7v0"
+          "current_key": "AIzaSyDS9FhBy87dcI1gtqU_BLPYH433QZrIelA"
         }
       ],
       "services": {
@@ -27,4 +27,3 @@
   ],
   "configuration_version": "1"
 }
-
