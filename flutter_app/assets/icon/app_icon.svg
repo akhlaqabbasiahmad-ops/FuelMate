@@ -1,0 +1,83 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for fuel drop -->
+    <linearGradient id="dropGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#42A5F5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Gradient for location pin -->
+    <linearGradient id="pinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFB74D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF9800;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#FFFFFF" rx="180"/>
+  
+  <!-- Fuel Drop Shape -->
+  <path d="M 512 200 
+           Q 512 180, 532 180
+           L 612 180
+           Q 632 180, 632 200
+           L 632 280
+           Q 632 300, 612 300
+           L 532 300
+           Q 512 300, 512 320
+           L 512 680
+           Q 512 720, 472 760
+           Q 432 800, 392 820
+           Q 352 840, 312 840
+           Q 272 840, 232 820
+           Q 192 800, 152 760
+           Q 112 720, 112 680
+           L 112 320
+           Q 112 300, 92 300
+           L 12 300
+           Q -8 300, -8 280
+           L -8 200
+           Q -8 180, 12 180
+           L 92 180
+           Q 112 180, 112 160
+           L 112 120
+           Q 112 80, 152 40
+           Q 192 0, 232 -20
+           Q 272 -40, 312 -40
+           Q 352 -40, 392 -20
+           Q 432 0, 472 40
+           Q 512 80, 512 120
+           Z" 
+        fill="url(#dropGradient)" 
+        filter="url(#shadow)"/>
+  
+  <!-- Location Pin (integrated into drop) -->
+  <circle cx="512" cy="420" r="140" fill="url(#pinGradient)" filter="url(#shadow)"/>
+  <path d="M 512 280 
+           L 472 420
+           L 512 500
+           L 552 420
+           Z" 
+        fill="url(#pinGradient)" 
+        filter="url(#shadow)"/>
+  
+  <!-- Highlight on drop -->
+  <ellipse cx="512" cy="240" rx="80" ry="40" fill="#FFFFFF" opacity="0.3"/>
+  
+  <!-- Highlight on pin -->
+  <ellipse cx="512" cy="380" rx="60" ry="30" fill="#FFFFFF" opacity="0.4"/>
+</svg>
+
